@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 // Foundry
-import {console} from "forge-std/Console.sol";
+//import {console} from "forge-std/Console.sol";
 
 // Local Interfaces
 import {IOUSDVault} from "src/interfaces/IOUSDVault.sol";
@@ -101,6 +101,7 @@ contract Hack_OUSD is Base_Test_ {
         vm.stopPrank();
 
         // Console all balances after attack
+        /*
         console.log("\n------ After the attack ------");
         console.log("Balance OUSD attacker: %e", OUSD.balanceOf(address(attackContract)));
         console.log("Balance USDT attacker: %e", USDT.balanceOf(address(attackContract)));
@@ -108,6 +109,7 @@ contract Hack_OUSD is Base_Test_ {
         console.log("Balance DAI attacker: %e", DAI.balanceOf(address(attackContract)));
         console.log("Balance WETH attacker: %e", WETH.balanceOf(address(attackContract)));
         console.log("Balance ETH attacker: %e", address(attackContract).balance);
+        */
     }
 }
 
