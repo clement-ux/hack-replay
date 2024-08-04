@@ -25,10 +25,12 @@ abstract contract Base_Test_ is Test, Contracts {
     function _label() internal {
         // Tokens
         vm.label(address(DAI), "DAI");
+        vm.label(address(CVG), "CVG");
         vm.label(address(OUSD), "OUSD");
         vm.label(address(USDT), "USDT");
         vm.label(address(USDC), "USDC");
         vm.label(address(WETH), "WETH");
+        vm.label(address(CRVFRAX), "CRVFRAX");
 
         // Routers
         vm.label(address(UNISWAP_ROUTER), "UNISWAP_ROUTER");
