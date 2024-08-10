@@ -9,6 +9,7 @@ import {ICVG} from "src/interfaces/ICVG.sol";
 import {IWETH} from "src/interfaces/IWETH.sol";
 import {IUSDT} from "src/interfaces/IUSDT.sol";
 import {IOUSD} from "src/interfaces/IOUSD.sol";
+import {ILiFiDiamond} from "src/interfaces/ILiFiDiamond.sol";
 import {IUniswapV2Router} from "src/interfaces/IUniswapV2Router.sol";
 
 // Local Libraries
@@ -29,6 +30,7 @@ abstract contract Contracts {
     //////////////////////////////////////////////////////
     /// --- ROUTERS
     //////////////////////////////////////////////////////
+    ILiFiDiamond public constant LIFI_ROUTER = ILiFiDiamond(payable(Mainnet.LIFI_ROUTER));
     IUniswapV2Router public constant UNISWAP_ROUTER = IUniswapV2Router(payable(Mainnet.UNISWAP_ROUTER));
     IUniswapV2Router public constant SUSHISWAP_ROUTER = IUniswapV2Router(payable(Mainnet.SUSHISWAP_ROUTER));
 }

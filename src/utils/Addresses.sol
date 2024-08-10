@@ -17,6 +17,7 @@ library Mainnet {
     address public constant CVG = 0x97efFB790f2fbB701D88f89DB4521348A2B77be8;
 
     // Swap
+    address public constant LIFI_ROUTER = 0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE;
     address public constant UNISWAP_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address public constant SUSHISWAP_ROUTER = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
 }
