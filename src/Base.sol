@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 // Foundry
-import {Test} from "forge-std/Test.sol";
+import {Test} from "@forge-std/Test.sol";
 
 import {Contracts} from "src/utils/Contracts.sol";
 
