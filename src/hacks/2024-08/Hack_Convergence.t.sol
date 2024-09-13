@@ -46,7 +46,7 @@ import {Base_Test_} from "src/Base.sol";
  * 3. The claimCvgCvxMultiple call the Attack_Contract_2 contract to know the amount of CVG to mint. (There is the error).
  * 4. The reward contract mint the desired amount of CVG tokens to the Attack_Contract_1 contract.
  * 5. The Attack_Contract_1 contract swapped the CVG tokens for WETH and CRVFRAX on Curve.
- * 
+ *
  * Note: Don't forget to set the FOUNDRY_EVM_VERSION to shanghai before running the test.
  */
 contract Hack_Convergence is Base_Test_ {

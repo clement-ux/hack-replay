@@ -6,9 +6,7 @@ libs = ["dependencies"]
 evm_version = "shanghai" # Needed for Convergence Hack
 auto_detect_remappings = false
 
-remappings = [
-    "@openzeppelin-contracts/=dependencies/@openzeppelin-contracts-5.0.2",
-    "@forge-std/=dependencies/forge-std-1.9.2/src/",
+remappings = ["@forge-std/=dependencies/forge-std-1.9.2/src/", "@openzeppelin-contracts/=dependencies/@openzeppelin-contracts-5.0.2",
 ]
 
 [dependencies]
