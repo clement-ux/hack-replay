@@ -11,6 +11,7 @@ import {IUSDT} from "src/interfaces/IUSDT.sol";
 import {IOUSD} from "src/interfaces/IOUSD.sol";
 import {ILiFiDiamond} from "src/interfaces/ILiFiDiamond.sol";
 import {IUniswapV2Router} from "src/interfaces/IUniswapV2Router.sol";
+import {ActionAddRemoveLiqV3} from "src/interfaces/IPendlRouter.sol";
 
 // Local Libraries
 import {Mainnet} from "src/utils/Addresses.sol";
@@ -25,6 +26,8 @@ abstract contract Contracts {
     IUSDT public constant USDT = IUSDT(Mainnet.USDT);
     IERC20 public constant DAI = IERC20(Mainnet.DAI);
     IERC20 public constant USDC = IERC20(Mainnet.USDC);
+    IERC20 public constant WSTETH = IERC20(Mainnet.WSTETH);
+    IERC20 public constant PENDLE = IERC20(Mainnet.PENDLE);
     IERC20 public constant CRVFRAX = IERC20(Mainnet.CRVFRAX);
 
     //////////////////////////////////////////////////////
@@ -33,4 +36,5 @@ abstract contract Contracts {
     ILiFiDiamond public constant LIFI_ROUTER = ILiFiDiamond(payable(Mainnet.LIFI_ROUTER));
     IUniswapV2Router public constant UNISWAP_ROUTER = IUniswapV2Router(payable(Mainnet.UNISWAP_ROUTER));
     IUniswapV2Router public constant SUSHISWAP_ROUTER = IUniswapV2Router(payable(Mainnet.SUSHISWAP_ROUTER));
+    ActionAddRemoveLiqV3 public constant PENDLE_ROUTER = ActionAddRemoveLiqV3(Mainnet.PENDLE_ROUTER);
 }
