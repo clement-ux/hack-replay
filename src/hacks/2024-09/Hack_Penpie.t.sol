@@ -129,12 +129,8 @@ contract Hack_Penpie is Base_Test_ {
             if (
                 keccak256(abi.encodePacked(bytes4(entries[i].topics[0])))
                     == keccak256(abi.encodeWithSignature("PoolAdded(address,address,address)"))
-            ) {
-                (, rewarder,) = abi.decode(entries[i].data, (address, address, address));
-            }
-            if (rewarder != address(0)) {
-                break;
-            }
+            ) (, rewarder,) = abi.decode(entries[i].data, (address, address, address));
+            if (rewarder != address(0)) break;
         }
         require(rewarder != address(0), "Rewarder not found");
 
