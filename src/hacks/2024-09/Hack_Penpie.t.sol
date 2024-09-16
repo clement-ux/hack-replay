@@ -107,7 +107,7 @@ contract Hack_Penpie is Base_Test_ {
         super.setUp();
 
         // Create a fork of the mainnet one block before the attack
-        vm.createSelectFork(vm.envString("PROVIDER_URL_MAINNET"), ATTACK_BLOCK_NUMBER - 1);
+        vm.createSelectFork("mainnet", ATTACK_BLOCK_NUMBER - 1);
 
         // Fetch contracts
         pendleStaking = IPendleStaking(payable(Mainnet.PENPIE_PENDLE_STAKING));

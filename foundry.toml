@@ -3,10 +3,12 @@ src = "src"
 solc = "0.8.25"
 out = "out"
 libs = ["dependencies"]
-evm_version = "shanghai" # Needed for Convergence Hack
+evm_version = "shanghai"       # Needed for Convergence Hack
 auto_detect_remappings = false
 
-remappings = ["@forge-std/=dependencies/forge-std-1.9.2/src/", "@openzeppelin-contracts/=dependencies/@openzeppelin-contracts-5.0.2",
+remappings = [
+    "@forge-std/=dependencies/forge-std-1.9.2/src/",
+    "@openzeppelin-contracts/=dependencies/@openzeppelin-contracts-5.0.2",
 ]
 
 [dependencies]
@@ -20,5 +22,8 @@ remappings_generate = true
 remappings_regenerate = false
 remappings_prefix = "@"
 remappings_location = "config"
+
+[rpc_endpoints]
+mainnet = "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

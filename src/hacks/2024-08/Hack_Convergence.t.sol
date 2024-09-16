@@ -70,7 +70,7 @@ contract Hack_Convergence is Base_Test_ {
         super.setUp();
 
         // Create a fork of the mainnet
-        vm.createSelectFork(vm.envString("PROVIDER_URL_MAINNET"), ATTACK_BLOCK_NUMBER - 1);
+        vm.createSelectFork("mainnet", ATTACK_BLOCK_NUMBER - 1);
     }
 
     function test_ConvergenceFinance_Attack_2024_08_01() public {

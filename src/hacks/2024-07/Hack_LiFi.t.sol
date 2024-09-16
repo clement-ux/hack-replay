@@ -68,7 +68,7 @@ contract Hack_LiFi is Base_Test_ {
         super.setUp();
 
         // Create a fork of the mainnet
-        vm.createSelectFork(vm.envString("PROVIDER_URL_MAINNET"), ATTACK_BLOCK_NUMBER - 1);
+        vm.createSelectFork("mainnet", ATTACK_BLOCK_NUMBER - 1);
 
         // Deploy the attack contract
         attackToken1 = new Attack_Token_1(address(LIFI_ROUTER));
