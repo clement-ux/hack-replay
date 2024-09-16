@@ -5,11 +5,25 @@ out = "out"
 libs = ["dependencies"]
 evm_version = "shanghai"       # Needed for Convergence Hack
 auto_detect_remappings = false
-
 remappings = [
     "@forge-std/=dependencies/forge-std-1.9.2/src/",
     "@openzeppelin-contracts/=dependencies/@openzeppelin-contracts-5.0.2",
 ]
+
+[fmt]
+line_length = 120
+tab_width = 4
+bracket_spacing = false
+int_types = "long"
+multiline_func_header = "attributes_first"
+quote_style = "double"
+number_underscore = "preserve"
+single_line_statement_blocks = "single"
+override_spacing = false
+wrap_comments = false
+ignore = []
+contract_new_lines = false
+sort_imports = false
 
 [dependencies]
 forge-std = "1.9.2"
